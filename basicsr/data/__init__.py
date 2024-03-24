@@ -31,6 +31,8 @@ def build_dataset(dataset_opt):
             type (str): Dataset type.
     """
     dataset_opt = deepcopy(dataset_opt)
+    # 根据 配置文件yml中的dataset类型
+    # 靠着 DATASET_REGISTRY.get() 就创建了相应的dataset
     dataset = DATASET_REGISTRY.get(dataset_opt['type'])(dataset_opt)
     logger = get_root_logger()
     logger.info(f'Dataset [{dataset.__class__.__name__}] - {dataset_opt["name"]} is built.')

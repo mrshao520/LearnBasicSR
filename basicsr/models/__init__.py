@@ -23,6 +23,8 @@ def build_model(opt):
             model_type (str): Model type.
     """
     opt = deepcopy(opt)
+    # 根据配置文件yml中的model类型
+    # 靠着MODEL_RESIGTRY.get()就可以创建相应的model的实例了
     model = MODEL_REGISTRY.get(opt['model_type'])(opt)
     logger = get_root_logger()
     logger.info(f'Model [{model.__class__.__name__}] is created.')

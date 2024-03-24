@@ -16,6 +16,7 @@ def test_pipeline(root_path):
     # torch.backends.cudnn.deterministic = True
 
     # mkdir and initialize loggers
+    # 新建 yml 文件，加载配置参数
     make_exp_dirs(opt)
     log_file = osp.join(opt['path']['log'], f"test_{opt['name']}_{get_time_str()}.log")
     logger = get_root_logger(logger_name='basicsr', log_level=logging.INFO, log_file=log_file)

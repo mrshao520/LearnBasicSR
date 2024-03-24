@@ -85,8 +85,8 @@ class BaseModel():
         return self.log_dict
 
     def model_to_device(self, net):
-        """Model to device. It also warps models with DistributedDataParallel
-        or DataParallel.
+        """Model to device. It also warps models with DistributedDataParallel(分布式数据并行)
+        or DataParallel(数据并行).
 
         Args:
             net (nn.Module)

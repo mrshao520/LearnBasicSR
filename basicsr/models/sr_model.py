@@ -11,27 +11,32 @@ from basicsr.utils.registry import MODEL_REGISTRY
 from .base_model import BaseModel
 
 
+# 注册SRModel
 @MODEL_REGISTRY.register()
+# SRModel继承于BaseModel，BaseModel中提供了model共用的一些函数
 class SRModel(BaseModel):
     """Base SR model for single image super-resolution."""
 
+    # 初始化SRModel类，比如定义网络和load weight
     def __init__(self, opt):
         super(SRModel, self).__init__(opt)
 
         # define network
-        self.net_g = build_network(opt['network_g'])
+        self.net_g = build_network(opt['network_g']) # 根据参数，实例化网络结构
         self.net_g = self.model_to_device(self.net_g)
         self.print_network(self.net_g)
 
-        # load pretrained models
+        # load pretrained models 加载预训练模型
         load_path = self.opt['path'].get('pretrain_network_g', None)
         if load_path is not None:
             param_key = self.opt['path'].get('param_key_g', 'params')
             self.load_network(self.net_g, load_path, self.opt['path'].get('strict_load_g', True), param_key)
 
+        # 初始化训练相关的设置
         if self.is_train:
             self.init_training_settings()
 
+    # 初始化与训练相关的，比如loss，设置optimizer和schedulers
     def init_training_settings(self):
         self.net_g.train()
         train_opt = self.opt['train']
@@ -52,7 +57,7 @@ class SRModel(BaseModel):
                 self.model_ema(0)  # copy net_g weight
             self.net_g_ema.eval()
 
-        # define losses
+        # define losses 根据配置文件yml中的loss的类型和参数，实例化loss
         if train_opt.get('pixel_opt'):
             self.cri_pix = build_loss(train_opt['pixel_opt']).to(self.device)
         else:
@@ -70,6 +75,7 @@ class SRModel(BaseModel):
         self.setup_optimizers()
         self.setup_schedulers()
 
+    # 具体设置optimizer，可以根据实际需求，对params设置多组不同的optimizer
     def setup_optimizers(self):
         train_opt = self.opt['train']
         optim_params = []
@@ -84,13 +90,18 @@ class SRModel(BaseModel):
         self.optimizer_g = self.get_optimizer(optim_type, optim_params, **train_opt['optim_g'])
         self.optimizers.append(self.optimizer_g)
 
+    # 提供数据，是与dataloader（dataset）的接口
     def feed_data(self, data):
         self.lq = data['lq'].to(self.device)
         if 'gt' in data:
             self.gt = data['gt'].to(self.device)
 
+    # 优化参数，即一个完整train的step，
+    # 包括forward、loss计算、backward、参数优化等
     def optimize_parameters(self, current_iter):
+        # 使optimizer中的梯度归零
         self.optimizer_g.zero_grad()
+        # 前向传播
         self.output = self.net_g(self.lq)
 
         l_total = 0
@@ -102,6 +113,7 @@ class SRModel(BaseModel):
             loss_dict['l_pix'] = l_pix
         # perceptual loss
         if self.cri_perceptual:
+            # 感知损失 和 分格损失
             l_percep, l_style = self.cri_perceptual(self.output, self.gt)
             if l_percep is not None:
                 l_total += l_percep
@@ -110,14 +122,18 @@ class SRModel(BaseModel):
                 l_total += l_style
                 loss_dict['l_style'] = l_style
 
+        # 前向传播
         l_total.backward()
+        # 更新参数
         self.optimizer_g.step()
 
+        # 为了loss的显示
         self.log_dict = self.reduce_loss_dict(loss_dict)
 
         if self.ema_decay > 0:
             self.model_ema(decay=self.ema_decay)
 
+    # 测试流程
     def test(self):
         if hasattr(self, 'net_g_ema'):
             self.net_g_ema.eval()
@@ -177,10 +193,12 @@ class SRModel(BaseModel):
 
         self.output = output.mean(dim=0, keepdim=True)
 
+    # 多卡验证流程
     def dist_validation(self, dataloader, current_iter, tb_logger, save_img):
         if self.opt['rank'] == 0:
             self.nondist_validation(dataloader, current_iter, tb_logger, save_img)
 
+    # 单卡验证流程
     def nondist_validation(self, dataloader, current_iter, tb_logger, save_img):
         dataset_name = dataloader.dataset.opt['name']
         with_metrics = self.opt['val'].get('metrics') is not None
@@ -188,6 +206,7 @@ class SRModel(BaseModel):
 
         if with_metrics:
             if not hasattr(self, 'metric_results'):  # only execute in the first run
+                # 将多个衡量标准放入dict中 {psnr: 0, ssim: 0}
                 self.metric_results = {metric: 0 for metric in self.opt['val']['metrics'].keys()}
             # initialize the best metric results for each dataset_name (supporting multiple validation datasets)
             self._initialize_best_metric_results(dataset_name)
@@ -201,7 +220,9 @@ class SRModel(BaseModel):
 
         for idx, val_data in enumerate(dataloader):
             img_name = osp.splitext(osp.basename(val_data['lq_path'][0]))[0]
+            # 喂测试数据
             self.feed_data(val_data)
+            # 测试
             self.test()
 
             visuals = self.get_current_visuals()
@@ -233,6 +254,7 @@ class SRModel(BaseModel):
             if with_metrics:
                 # calculate metrics
                 for name, opt_ in self.opt['val']['metrics'].items():
+                    # 根据配置文件yml中的metrics的配置，调用相应的函数
                     self.metric_results[name] += calculate_metric(metric_data, opt_)
             if use_pbar:
                 pbar.update(1)
@@ -242,12 +264,14 @@ class SRModel(BaseModel):
 
         if with_metrics:
             for metric in self.metric_results.keys():
+                # 计算均值，计算 1 epoch 的均值
                 self.metric_results[metric] /= (idx + 1)
                 # update the best metric result
                 self._update_best_metric_result(dataset_name, metric, self.metric_results[metric], current_iter)
 
             self._log_validation_metric_values(current_iter, dataset_name, tb_logger)
 
+    # 控制打印validation的结果
     def _log_validation_metric_values(self, current_iter, dataset_name, tb_logger):
         log_str = f'Validation {dataset_name}\n'
         for metric, value in self.metric_results.items():
@@ -263,6 +287,7 @@ class SRModel(BaseModel):
             for metric, value in self.metric_results.items():
                 tb_logger.add_scalar(f'metrics/{dataset_name}/{metric}', value, current_iter)
 
+    # 得到网络输出的结果，这个函数会在validation中用到，实际可以简化掉
     def get_current_visuals(self):
         out_dict = OrderedDict()
         out_dict['lq'] = self.lq.detach().cpu()
@@ -271,6 +296,7 @@ class SRModel(BaseModel):
             out_dict['gt'] = self.gt.detach().cpu()
         return out_dict
 
+    # 保存网络（.pth文件）和训练状态（.state文件）
     def save(self, epoch, current_iter):
         if hasattr(self, 'net_g_ema'):
             self.save_network([self.net_g, self.net_g_ema], 'net_g', current_iter, param_key=['params', 'params_ema'])

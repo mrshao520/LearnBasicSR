@@ -11,13 +11,14 @@ manual_seed: 0
 
 # test dataset settings
 datasets:
-  test_1:  # the 1st test dataset
-    name: Set5
-    type: PairedImageDataset
+  test_1:  # the 1st test dataset 测试数据集的设置，后缀1表示第一个测试集
+    name: Set5 # 数据集的名称
+    type: PairedImageDataset # 读取数据的Dataset类
+    # GT 和 输入LQ的根目录
     dataroot_gt: datasets/Set5/GTmod12
     dataroot_lq: datasets/Set5/LRbicx4
-    io_backend:
-      type: disk
+    io_backend: # io读取的backend
+      type: disk # disk表示直接从硬盘读取
   test_2:  # the 2nd test dataset
     name: Set14
     type: PairedImageDataset
@@ -34,9 +35,10 @@ datasets:
     io_backend:
       type: disk
 
-# network structures
-network_g:
-  type: MSRResNet
+# network structures  网络结构的设置
+network_g: # 网络 g 的设置
+  type: MSRResNet # 网络结构（Architecture）的类型
+  # MSRResNet的参数设置
   num_in_ch: 3
   num_out_ch: 3
   num_feat: 64
@@ -45,13 +47,15 @@ network_g:
 
 # path
 path:
+  # 预训练模型的路径，需要以pth结尾的模型
   pretrain_network_g: experiments/001_MSRResNet_x4_f64b16_DIV2K_1000k_B16G1_wandb/models/net_g_1000000.pth
+  # 读取的预训练的参数 key，若需要使用 EMA 模型，需要改成 param_ema
   param_key_g: params
-  strict_load_g: true
+  strict_load_g: true # 加载预训练模型时，是否需要网络参数的名称严格对应
 
-# validation settings
+# validation settings 以下为validation（也是测试）的设置
 val:
-  save_img: true
+  save_img: true # 是否在测试的时候保存图片
   suffix: ~  # add suffix to saved images, if None, use exp name
 
   metrics:

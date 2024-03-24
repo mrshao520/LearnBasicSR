@@ -98,18 +98,31 @@ def _postprocess_yml_value(value):
 
 def parse_options(root_path, is_train=True):
     parser = argparse.ArgumentParser()
+    # yaml配置文件路径
     parser.add_argument('-opt', type=str, required=True, help='Path to option YAML file.')
+    # 用于指定分布式训练（distibuted training）; 默认是none，即单卡非分布式训练
     parser.add_argument('--launcher', choices=['none', 'pytorch', 'slurm'], default='none', help='job launcher')
+    # 是否继续执行，即自动查找最近的checkpoint，继续训练
     parser.add_argument('--auto_resume', action='store_true')
+    # 能够快速帮助 debug
+    """
+    debug模式下：
+        程序每次iteration下都打印日志，并且经过8次iteration后，便会进入 validation 阶段
+        这样可以快速方便地查看代码是否可以正常运行，而不用实际训练。
+        在debug模式中，并不会使用tensrboard logger和wandb logger，以保证日志文件的简洁性
+    """
     parser.add_argument('--debug', action='store_true')
+    # distributed training中程序自动会传入
     parser.add_argument('--local_rank', type=int, default=0)
+    # 方便在命令行中修改yml中的配置文件
     parser.add_argument(
         '--force_yml', nargs='+', default=None, help='Force to update yml files. Examples: train:ema_decay=0.999')
     args = parser.parse_args()
 
-    # parse yml to dict
+    # parse yml to dict 解析配置文件 option file，即 yml 文件
     opt = yaml_load(args.opt)
 
+    # 设置 distributed training 分布式训练 的相关选项
     # distributed settings
     if args.launcher == 'none':
         opt['dist'] = False

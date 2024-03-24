@@ -32,8 +32,10 @@ def create_train_val_dataloader(opt, logger):
     for phase, dataset_opt in opt['datasets'].items():
         if phase == 'train':
             dataset_enlarge_ratio = dataset_opt.get('dataset_enlarge_ratio', 1)
+            # 创建dataset
             train_set = build_dataset(dataset_opt)
             train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], dataset_enlarge_ratio)
+            # 创建dataloader
             train_loader = build_dataloader(
                 train_set,
                 dataset_opt,
@@ -93,36 +95,45 @@ def train_pipeline(root_path):
     opt, args = parse_options(root_path, is_train=True)
     opt['root_path'] = root_path
 
+    # 初始化时设置cuDNN的基准测试为True
     torch.backends.cudnn.benchmark = True
     # torch.backends.cudnn.deterministic = True
 
     # load resume states if necessary
+    # 如果配置文件或者命令行有resume的指令，则会load相应的.state文件，用于resume
     resume_state = load_resume_state(opt)
     # mkdir for experiments and logger
     if resume_state is None:
-        make_exp_dirs(opt)
+        make_exp_dirs(opt) # 创建用于存放实验的一系列文件夹。如果resume则不需要创建
         if opt['logger'].get('use_tb_logger') and 'debug' not in opt['name'] and opt['rank'] == 0:
             mkdir_and_rename(osp.join(opt['root_path'], 'tb_logger', opt['name']))
 
     # copy the yml file to the experiment root
+    # 把yml文件copy到实验文件夹里，方便后续查看
     copy_opt_file(args.opt, opt['path']['experiments_root'])
 
+    # 在这以上的代码（及调用函数）中，不能使用get_root_logger， 否则会导致logger初始化错误
     # WARNING: should not use get_root_logger in the above codes, including the called functions
     # Otherwise the logger will not be properly initialized
     log_file = osp.join(opt['path']['log'], f"train_{opt['name']}_{get_time_str()}.log")
     logger = get_root_logger(logger_name='basicsr', log_level=logging.INFO, log_file=log_file)
-    logger.info(get_env_info())
-    logger.info(dict2str(opt))
+    logger.info(get_env_info()) # 初始化日志系统logger，会有文件和屏幕的logger
+    logger.info(dict2str(opt))  # 会在logger中输出环境信息，以及实际的且更加完善的配置信息
     # initialize wandb and tb loggers
+    # 根据配置需要，初始化tensorboard logger和wandb logger
     tb_logger = init_tb_loggers(opt)
 
     # create train and validation dataloaders
+    # 创建用于训练和验证的dataloader
     result = create_train_val_dataloader(opt, logger)
     train_loader, train_sampler, val_loaders, total_epochs, total_iters = result
 
     # create model
+    # 创建model，里面包括了网络结构arch，loss等等
     model = build_model(opt)
     if resume_state:  # resume training
+        # 如果resume的话，需要处理optimizers和schedulers
+        # 设置正确的epoch和iter
         model.resume_training(resume_state)  # handle optimizers and schedulers
         logger.info(f"Resuming training from epoch: {resume_state['epoch']}, iter: {resume_state['iter']}.")
         start_epoch = resume_state['epoch']
@@ -132,9 +143,10 @@ def train_pipeline(root_path):
         current_iter = 0
 
     # create message logger (formatted outputs)
+    # 控制并格式化 logger 输出的信息
     msg_logger = MessageLogger(opt, current_iter, tb_logger)
 
-    # dataloader prefetcher
+    # dataloader prefetcher 如何提高data I/O
     prefetch_mode = opt['datasets']['train'].get('prefetch_mode')
     if prefetch_mode is None or prefetch_mode == 'cpu':
         prefetcher = CPUPrefetcher(train_loader)
@@ -151,21 +163,26 @@ def train_pipeline(root_path):
     data_timer, iter_timer = AvgTimer(), AvgTimer()
     start_time = time.time()
 
+    # 虽然这里是以epoch为外层循环，但实际我们是以iteration来判断训练是否结束
     for epoch in range(start_epoch, total_epochs + 1):
         train_sampler.set_epoch(epoch)
         prefetcher.reset()
         train_data = prefetcher.next()
 
+        # 当每一个epoch还有数据，就进入一次iteration的训练
         while train_data is not None:
             data_timer.record()
 
             current_iter += 1
             if current_iter > total_iters:
+                # 达到设置的最大训练iteration次数，训练停止
                 break
-            # update learning rate
+            # update learning rate 更新学习率
             model.update_learning_rate(current_iter, warmup_iter=opt['train'].get('warmup_iter', -1))
             # training
+            # 喂数据
             model.feed_data(train_data)
+            # 一次训练过程 train step
             model.optimize_parameters(current_iter)
             iter_timer.record()
             if current_iter == 1:
@@ -173,6 +190,7 @@ def train_pipeline(root_path):
                 # not work in resume mode
                 msg_logger.reset_start_time()
             # log
+            # 每隔print_freq次迭代，打印信息
             if current_iter % opt['logger']['print_freq'] == 0:
                 log_vars = {'epoch': epoch, 'iter': current_iter}
                 log_vars.update({'lrs': model.get_current_learning_rate()})
@@ -181,6 +199,7 @@ def train_pipeline(root_path):
                 msg_logger(log_vars)
 
             # save models and training states
+            # 每隔一段时间，保存模型（.pth文件）和训练状态（.state文件）
             if current_iter % opt['logger']['save_checkpoint_freq'] == 0:
                 logger.info('Saving models and training states.')
                 model.save(epoch, current_iter)
@@ -211,5 +230,6 @@ def train_pipeline(root_path):
 
 
 if __name__ == '__main__':
+    # 获取当前文件的上级目录的绝对路径
     root_path = osp.abspath(osp.join(__file__, osp.pardir, osp.pardir))
     train_pipeline(root_path)

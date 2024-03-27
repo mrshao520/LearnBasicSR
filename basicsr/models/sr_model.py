@@ -21,10 +21,10 @@ class SRModel(BaseModel):
     def __init__(self, opt):
         super(SRModel, self).__init__(opt)
 
-        # define network
+        # define network 定义网络结构，根据配置文件，自动实例化相应的网络结构类
         self.net_g = build_network(opt['network_g']) # 根据参数，实例化网络结构
-        self.net_g = self.model_to_device(self.net_g)
-        self.print_network(self.net_g)
+        self.net_g = self.model_to_device(self.net_g) # 将网络放到GPU上
+        self.print_network(self.net_g) # 打印网络
 
         # load pretrained models 加载预训练模型
         load_path = self.opt['path'].get('pretrain_network_g', None)
@@ -91,6 +91,10 @@ class SRModel(BaseModel):
         self.optimizers.append(self.optimizer_g)
 
     # 提供数据，是与dataloader（dataset）的接口
+    # 把训练数据送入模型，这里是从dataloader中取出数据，用于训练或测试。
+    #       在SRModel中，每次取用一个batch的LR和GT图像。
+    # 其他模型对batch作不同操作时，经常会改写这个函数。比如只读取GT、读取额外label
+    # 对读取的数据添加 degradation 的操作，都通过修改feed__data来实现
     def feed_data(self, data):
         self.lq = data['lq'].to(self.device)
         if 'gt' in data:
@@ -105,6 +109,7 @@ class SRModel(BaseModel):
         self.output = self.net_g(self.lq)
 
         l_total = 0
+        # 使用有序字典，可以在log显示的时候，保持我们添加先后顺序
         loss_dict = OrderedDict()
         # pixel loss
         if self.cri_pix:
@@ -113,7 +118,7 @@ class SRModel(BaseModel):
             loss_dict['l_pix'] = l_pix
         # perceptual loss
         if self.cri_perceptual:
-            # 感知损失 和 分格损失
+            # 感知损失 和 风格损失
             l_percep, l_style = self.cri_perceptual(self.output, self.gt)
             if l_percep is not None:
                 l_total += l_percep
@@ -122,7 +127,7 @@ class SRModel(BaseModel):
                 l_total += l_style
                 loss_dict['l_style'] = l_style
 
-        # 前向传播
+        # 反向传播
         l_total.backward()
         # 更新参数
         self.optimizer_g.step()

@@ -21,16 +21,20 @@ class BaseModel():
         self.optimizers = []
 
     def feed_data(self, data):
+        # 喂数据，需要在继承的类里面具体实现
         pass
 
     def optimize_parameters(self):
+        # 优化参数，特指一次完整的训练过程，即train_step
         pass
 
     def get_current_visuals(self):
         pass
 
     def save(self, epoch, current_iter):
-        """Save networks and training state."""
+        """Save networks and training state.
+        保存训练模型和训练状态
+        """
         pass
 
     def validation(self, dataloader, current_iter, tb_logger, save_img=False):
@@ -101,6 +105,7 @@ class BaseModel():
         return net
 
     def get_optimizer(self, optim_type, params, lr, **kwargs):
+        """根据yml配置文件获取优化器"""
         if optim_type == 'Adam':
             optimizer = torch.optim.Adam(params, lr, **kwargs)
         elif optim_type == 'AdamW':
@@ -120,7 +125,7 @@ class BaseModel():
         return optimizer
 
     def setup_schedulers(self):
-        """Set up schedulers."""
+        """Set up schedulers.根据yml配置文件获取学习率的策略方式"""
         train_opt = self.opt['train']
         scheduler_type = train_opt['scheduler'].pop('type')
         if scheduler_type in ['MultiStepLR', 'MultiStepRestartLR']:
@@ -140,7 +145,7 @@ class BaseModel():
             net = net.module
         return net
 
-    @master_only
+    @master_only # 表示在多卡下，只在主卡上进行调用
     def print_network(self, net):
         """Print the str and parameter number of a network.
 
@@ -351,6 +356,7 @@ class BaseModel():
 
     def resume_training(self, resume_state):
         """Reload the optimizers and schedulers for resumed training.
+            断点恢复训练
 
         Args:
             resume_state (dict): Resume state.
@@ -368,6 +374,7 @@ class BaseModel():
         """reduce loss dict.
 
         In distributed training, it averages the losses among different GPUs .
+        在多卡训练时，平均多个 GPU 的损失函数
 
         Args:
             loss_dict (OrderedDict): Loss dict.

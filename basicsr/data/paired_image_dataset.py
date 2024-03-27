@@ -19,6 +19,9 @@ class PairedImageDataset(data.Dataset):
     2. **meta_info_file**: Use meta information file to generate paths. \
         If opt['io_backend'] != lmdb and opt['meta_info_file'] is not None.
     3. **folder**: Scan folders to generate paths. The rest.
+    1. 直接从 lmdb 格式的文件中读取
+    2. 若提供了 meta_info 文件,则直接从该文件中列出的文件路径读取数据
+    3. 输入文件目录，自动扫描该目录中的文件，然后读取
 
     Args:
         opt (dict): Config for train datasets. It contains the following keys:
@@ -38,9 +41,10 @@ class PairedImageDataset(data.Dataset):
     def __init__(self, opt):
         super(PairedImageDataset, self).__init__()
         self.opt = opt
-        # file client (io backend)
+        # file client (io backend) 初始化file client部分
         self.file_client = None
         self.io_backend_opt = opt['io_backend']
+        # 赋值常用的配置参数
         self.mean = opt['mean'] if 'mean' in opt else None
         self.std = opt['std'] if 'std' in opt else None
 
@@ -66,6 +70,7 @@ class PairedImageDataset(data.Dataset):
 
         scale = self.opt['scale']
 
+        # 从存储介质中读取相应的数据到内存的过程
         # Load gt and lq images. Dimension order: HWC; channel order: BGR;
         # image range: [0, 1], float32.
         gt_path = self.paths[index]['gt_path']
@@ -75,6 +80,7 @@ class PairedImageDataset(data.Dataset):
         img_bytes = self.file_client.get(lq_path, 'lq')
         img_lq = imfrombytes(img_bytes, float32=True)
 
+        # 数据增强：主要是成对数据的随机裁剪和旋转、翻转等
         # augmentation for training
         if self.opt['phase'] == 'train':
             gt_size = self.opt['gt_size']
@@ -93,6 +99,7 @@ class PairedImageDataset(data.Dataset):
         if self.opt['phase'] != 'train':
             img_gt = img_gt[0:img_lq.shape[0] * scale, 0:img_lq.shape[1] * scale, :]
 
+        # 将numpy数据格式转换成 PyTorch 所需的 Tensor 格式，并根据需要作归一化处理
         # BGR to RGB, HWC to CHW, numpy to tensor
         img_gt, img_lq = img2tensor([img_gt, img_lq], bgr2rgb=True, float32=True)
         # normalize

@@ -2,6 +2,12 @@ import logging
 import torch
 from os import path as osp
 
+import sys
+if sys.platform.startswith('win'):
+    from pathlib import Path
+    root = Path(__file__).parent.parent
+    sys.path.append(str(root))
+
 from basicsr.data import build_dataloader, build_dataset
 from basicsr.models import build_model
 from basicsr.utils import get_env_info, get_root_logger, get_time_str, make_exp_dirs

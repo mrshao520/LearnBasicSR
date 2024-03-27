@@ -68,7 +68,8 @@ datasets:
     # 预先读取数据的方式
     # cpu表示使用CPU prefetcher
     # cuda表示使用CUDA prefetcher，他会多占用一些GPU显存。
-    #       注意这个模式下，一定要设置pin_memory=True
+    #       注意这个模式下，一定要设置pin_memory=true
+    #             prefetch_mode:cuda; pin_memory:true
     prefetch_mode: ~
 
   val:

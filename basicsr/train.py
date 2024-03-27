@@ -5,6 +5,12 @@ import time
 import torch
 from os import path as osp
 
+import sys
+if sys.platform.startswith('win'):
+    from pathlib import Path
+    root = Path(__file__).parent.parent
+    sys.path.append(str(root))
+
 from basicsr.data import build_dataloader, build_dataset
 from basicsr.data.data_sampler import EnlargedSampler
 from basicsr.data.prefetch_dataloader import CPUPrefetcher, CUDAPrefetcher

@@ -15,11 +15,14 @@ def calculate_psnr(img, img2, crop_border, input_order='HWC', test_y_channel=Fal
     Reference: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
 
     Args:
-        img (ndarray): Images with range [0, 255].
-        img2 (ndarray): Images with range [0, 255].
-        crop_border (int): Cropped pixels in each edge of an image. These pixels are not involved in the calculation.
+        img (ndarray): Images with range [0, 255].输入图像变量1
+        img2 (ndarray): Images with range [0, 255].输入图像变量2
+        crop_border (int): Cropped pixels in each edge of an image. These pixels are not involved in the calculation.是否在计算PSNR时切除边缘的像素。使用神经网络处理图像时，
+        边缘的几个像素通常会有较大的误差
         input_order (str): Whether the input order is 'HWC' or 'CHW'. Default: 'HWC'.
+        输入的尺寸顺序，默认为 'HWC'
         test_y_channel (bool): Test on Y channel of YCbCr. Default: False.
+        是否转换的 Y 空间计算PSNR
 
     Returns:
         float: PSNR result.
@@ -51,6 +54,8 @@ def calculate_psnr(img, img2, crop_border, input_order='HWC', test_y_channel=Fal
 @METRIC_REGISTRY.register()
 def calculate_psnr_pt(img, img2, crop_border, test_y_channel=False, **kwargs):
     """Calculate PSNR (Peak Signal-to-Noise Ratio) (PyTorch version).
+    当输入变量为 torch.Tensor 类型时，输入图像的数据格式为 Float32，尺寸为[n, c, h, w]
+    此时输入图像像素的取值范围为[0, 1]浮点数取值。
 
     Reference: https://en.wikipedia.org/wiki/Peak_signal-to-noise_ratio
 

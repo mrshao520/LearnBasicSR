@@ -110,6 +110,7 @@ path:
   # 如果选择true，假如存在不对应的参数，会报错提示
   strict_load_g: true
   # 重启训练的state路径，在experiments/exp_name/training_states目录下
+  # state里记录epoch和iter，parameters，schedulers
   resume_state: ~
 
 # training settings

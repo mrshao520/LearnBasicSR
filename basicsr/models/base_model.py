@@ -341,6 +341,7 @@ class BaseModel():
             retry = 3
             while retry > 0:
                 try:
+                    # 保持state文件
                     torch.save(state, save_path)
                 except Exception as e:
                     logger = get_root_logger()
@@ -356,7 +357,7 @@ class BaseModel():
 
     def resume_training(self, resume_state):
         """Reload the optimizers and schedulers for resumed training.
-            断点恢复训练
+            断点恢复训练：加载优化器和学习率调整器
 
         Args:
             resume_state (dict): Resume state.

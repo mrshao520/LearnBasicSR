@@ -66,6 +66,9 @@ class MessageLogger():
         self.logger = get_root_logger()
 
     def reset_start_time(self):
+        """
+        重新设置开始时间
+        """
         self.start_time = time.time()
 
     @master_only
@@ -117,6 +120,9 @@ class MessageLogger():
 
 @master_only
 def init_tb_logger(log_dir):
+    """
+    创建tensorboard writer
+    """
     from torch.utils.tensorboard import SummaryWriter
     tb_logger = SummaryWriter(log_dir=log_dir)
     return tb_logger

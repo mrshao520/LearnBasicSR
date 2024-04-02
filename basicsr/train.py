@@ -36,10 +36,12 @@ def create_train_val_dataloader(opt, logger):
     # create train and val dataloaders
     train_loader, val_loaders = None, []
     for phase, dataset_opt in opt['datasets'].items():
+        # 训练集
         if phase == 'train':
             dataset_enlarge_ratio = dataset_opt.get('dataset_enlarge_ratio', 1)
             # 创建dataset
             train_set = build_dataset(dataset_opt)
+            # world_size = gpu number
             train_sampler = EnlargedSampler(train_set, opt['world_size'], opt['rank'], dataset_enlarge_ratio)
             # 创建dataloader
             train_loader = build_dataloader(
@@ -61,6 +63,7 @@ def create_train_val_dataloader(opt, logger):
                         f'\n\tWorld size (gpu number): {opt["world_size"]}'
                         f'\n\tRequire iter number per epoch: {num_iter_per_epoch}'
                         f'\n\tTotal epochs: {total_epochs}; iters: {total_iters}.')
+        # 验证集
         elif phase.split('_')[0] == 'val':
             val_set = build_dataset(dataset_opt)
             val_loader = build_dataloader(
@@ -76,6 +79,7 @@ def create_train_val_dataloader(opt, logger):
 def load_resume_state(opt):
     resume_state_path = None
     if opt['auto_resume']:
+        # auto_resume 查找最新的state状况文件
         state_path = osp.join('experiments', opt['name'], 'training_states')
         if osp.isdir(state_path):
             states = list(scandir(state_path, suffix='state', recursive=False, full_path=False))
@@ -85,12 +89,14 @@ def load_resume_state(opt):
                 opt['path']['resume_state'] = resume_state_path
     else:
         if opt['path'].get('resume_state'):
+            # 指定resume_state文件
             resume_state_path = opt['path']['resume_state']
 
     if resume_state_path is None:
         resume_state = None
     else:
         device_id = torch.cuda.current_device()
+        # 加载 state 文件
         resume_state = torch.load(resume_state_path, map_location=lambda storage, loc: storage.cuda(device_id))
         check_resume(opt, resume_state['iter'])
     return resume_state
@@ -98,6 +104,7 @@ def load_resume_state(opt):
 
 def train_pipeline(root_path):
     # parse options, set distributed setting, set random seed
+    # is_train=True 训练
     opt, args = parse_options(root_path, is_train=True)
     opt['root_path'] = root_path
 
@@ -112,6 +119,7 @@ def train_pipeline(root_path):
     if resume_state is None:
         make_exp_dirs(opt) # 创建用于存放实验的一系列文件夹。如果resume则不需要创建
         if opt['logger'].get('use_tb_logger') and 'debug' not in opt['name'] and opt['rank'] == 0:
+            # 创建tensorboard文件夹
             mkdir_and_rename(osp.join(opt['root_path'], 'tb_logger', opt['name']))
 
     # copy the yml file to the experiment root
@@ -136,7 +144,9 @@ def train_pipeline(root_path):
 
     # create model
     # 创建model，里面包括了网络结构arch，loss等等
+    # 创建模型时加载预训练模型
     model = build_model(opt)
+
     if resume_state:  # resume training
         # 如果resume的话，需要处理optimizers和schedulers
         # 设置正确的epoch和iter
@@ -224,6 +234,7 @@ def train_pipeline(root_path):
 
     # end of epoch
 
+    # 总共耗时
     consumed_time = str(datetime.timedelta(seconds=int(time.time() - start_time)))
     logger.info(f'End of training. Time consumed: {consumed_time}')
     logger.info('Save the latest model.')

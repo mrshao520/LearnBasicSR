@@ -9,6 +9,7 @@ class EnlargedSampler(Sampler):
     Modified from torch.utils.data.distributed.DistributedSampler
     Support enlarging the dataset for iteration-based training, for saving
     time when restart the dataloader after each epoch
+    支持放大数据集进行基于迭代的训练，以节省每次epoch后重新启动数据加载器的时间
 
     Args:
         dataset (torch.utils.data.Dataset): Dataset used for sampling.

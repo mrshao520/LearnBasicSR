@@ -6,13 +6,17 @@ from multiprocessing import Pool
 from os import path as osp
 from tqdm import tqdm
 
+from pathlib import Path
+root = Path(__file__).parent.parent.parent
+sys.path.append(str(root))
+
 from basicsr.utils import scandir
 
 
 def main():
     """A multi-thread tool to crop large images to sub-images for faster IO.
 
-    It is used for DIV2K dataset.
+    It is used for DF2K dataset.
 
     Args:
         opt (dict): Configuration dict. It contains:
@@ -27,12 +31,12 @@ def main():
 
     Usage:
         For each folder, run this script.
-        Typically, there are four folders to be processed for DIV2K dataset.
+        Typically, there are four folders to be processed for DF2K dataset.
 
-            * DIV2K_train_HR
-            * DIV2K_train_LR_bicubic/X2
-            * DIV2K_train_LR_bicubic/X3
-            * DIV2K_train_LR_bicubic/X4
+            * DF2K_train_HR
+            * DF2K_train_LR_bicubic/X2
+            * DF2K_train_LR_bicubic/X3
+            * DF2K_train_LR_bicubic/X4
 
         After process, each sub_folder should have the same number of subimages.
 
@@ -40,36 +44,36 @@ def main():
     """
 
     opt = {}
-    opt['n_thread'] = 20
+    opt['n_thread'] = 12
     opt['compression_level'] = 3
 
     # HR images
-    opt['input_folder'] = 'datasets/DIV2K/DIV2K_train_HR'
-    opt['save_folder'] = 'datasets/DIV2K/DIV2K_train_HR_sub'
+    opt['input_folder'] = 'datasets/DF2K/DF2K_train_HR'
+    opt['save_folder'] = 'datasets/DF2K/DF2K_train_HR_sub'
     opt['crop_size'] = 480
     opt['step'] = 240
     opt['thresh_size'] = 0
     extract_subimages(opt)
 
     # LRx2 images
-    opt['input_folder'] = 'datasets/DIV2K/DIV2K_train_LR_bicubic/X2'
-    opt['save_folder'] = 'datasets/DIV2K/DIV2K_train_LR_bicubic/X2_sub'
+    opt['input_folder'] = 'datasets/DF2K/DF2K_train_LR_bicubic/X2'
+    opt['save_folder'] = 'datasets/DF2K/DF2K_train_LR_bicubic/X2_sub'
     opt['crop_size'] = 240
     opt['step'] = 120
     opt['thresh_size'] = 0
     extract_subimages(opt)
 
     # LRx3 images
-    opt['input_folder'] = 'datasets/DIV2K/DIV2K_train_LR_bicubic/X3'
-    opt['save_folder'] = 'datasets/DIV2K/DIV2K_train_LR_bicubic/X3_sub'
+    opt['input_folder'] = 'datasets/DF2K/DF2K_train_LR_bicubic/X3'
+    opt['save_folder'] = 'datasets/DF2K/DF2K_train_LR_bicubic/X3_sub'
     opt['crop_size'] = 160
     opt['step'] = 80
     opt['thresh_size'] = 0
     extract_subimages(opt)
 
     # LRx4 images
-    opt['input_folder'] = 'datasets/DIV2K/DIV2K_train_LR_bicubic/X4'
-    opt['save_folder'] = 'datasets/DIV2K/DIV2K_train_LR_bicubic/X4_sub'
+    opt['input_folder'] = 'datasets/DF2K/DF2K_train_LR_bicubic/X4'
+    opt['save_folder'] = 'datasets/DF2K/DF2K_train_LR_bicubic/X4_sub'
     opt['crop_size'] = 120
     opt['step'] = 60
     opt['thresh_size'] = 0
@@ -126,7 +130,7 @@ def worker(path, opt):
     thresh_size = opt['thresh_size']
     img_name, extension = osp.splitext(osp.basename(path))
 
-    # remove the x2, x3, x4 and x8 in the filename for DIV2K
+    # remove the x2, x3, x4 and x8 in the filename for DF2K
     img_name = img_name.replace('x2', '').replace('x3', '').replace('x4', '').replace('x8', '')
 
     img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
